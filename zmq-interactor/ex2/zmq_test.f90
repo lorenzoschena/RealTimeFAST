@@ -34,8 +34,7 @@ program zmq_test_program
 
     ! Call the C function from Fortran
     response_ptr = zmq_client(socket_address, request, data_)
-    print *, 'test', response_ptr
-    
+
     ! Check if the pointer is valid
     if (transfer(response_ptr, c_ptrdiff_t) /= transfer(c_null_ptr, c_ptrdiff_t)) then
         ! Convert the returned pointer to a Fortran character pointer
