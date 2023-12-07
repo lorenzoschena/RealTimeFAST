@@ -1,0 +1,2 @@
+# Skip committing builds 
+.\OpenFAST_RT\builds.*
