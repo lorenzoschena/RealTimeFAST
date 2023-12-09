@@ -68,4 +68,32 @@ OpenFAST RT v 1.0
 	- define interactor to modify quantities on-the-go
 	
 
+Note
+-----
+
+For some reason, OpenFAST loses reference to external library `zmq_client.o`. I.e., if called
+
+`ldd /usr/local/bin/openfast`
+
+I get: 
+
+```
+(obi-wan) (yoda) root@613a5f25d104:/home/of_rt/tests# ldd /usr/local/bin/openfast
+        linux-vdso.so.1 (0x00007ffed2991000)
+        zmq_client.o => not found
+        liblapack.so.3 => /lib/x86_64-linux-gnu/liblapack.so.3 (0x00007f10a3185000)
+        libblas.so.3 => /lib/x86_64-linux-gnu/libblas.so.3 (0x00007f10a30df000)
+        libgfortran.so.5 => /lib/x86_64-linux-gnu/libgfortran.so.5 (0x00007f10a2e04000)
+        libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f10a2d1d000)
+        libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f10a2cfb000)
+        libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f10a2ad3000)
+        libquadmath.so.0 => /lib/x86_64-linux-gnu/libquadmath.so.0 (0x00007f10a2a8b000)
+        /lib64/ld-linux-x86-64.so.2 (0x00007f10a699c000)
+
+```
+
+Fixing (temporary) modifying the environment variable
+
+`export LD_LIBRARY_PATH=/path/to/zmq_client.o:$LD_LIBRARY_PATH`
+
 

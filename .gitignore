@@ -1,2 +1,2 @@
 # Skip committing builds 
-.\OpenFAST_RT\builds.*
+.\OpenFAST_RT\ZMQ01
