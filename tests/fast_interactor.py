@@ -90,7 +90,7 @@ def launch_fast():
     work_dir  = './TemplateDir/'         # Output folder (will be created)
     PARAMS = []                         # leave it like this for future tests
     
-    BaseDict = {'TMax': 20.0, 'DT': 0.005, '__name__': 'Main01'}
+    BaseDict = {'TMax': 500.0, 'DT': 0.005, '__name__': 'Main01'}
     
     PARAMS.append(BaseDict.copy())
     
@@ -104,7 +104,7 @@ def launch_fast():
 # ------------------------------------------ #
 
 if __name__ == '__main__':
-    p1 = mp.Process(target=req_rep_handler)
+    # p1 = mp.Process(target=req_rep_handler)
     p2 = mp.Process(target=launch_fast)
     # p3 = mp.Process(target=pub_sub_handler)
 
@@ -114,6 +114,6 @@ if __name__ == '__main__':
     # time.sleep(1)
     p2.start()
     
-    # p1.join()
+    p1.join()
     p2.join()
     # p3.join()
