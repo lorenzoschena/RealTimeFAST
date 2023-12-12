@@ -31,16 +31,16 @@ def req_rep_handler(address: str = req_rep_address):
     try:
         while True: 
             req = req_rep_socket.recv_string()
-            print('Fortran received request: \t {}'.format(req))
+            # print('Fortran received request: \t {}'.format(req))
             
             if req.lower() == 'wspeed':
                 n = uh[t] #9.5 +  np.sin(t)
-                print("Python is sending: \t {}".format(n))
+                # print("Python is sending: \t {}".format(n))
                 req_rep_socket.send(struct.pack('<f', n))
                 t += 1
             else: 
                 n = 0.00
-                print("Python is sending: \t {}".format(n))
+                # print("Python is sending: \t {}".format(n))
                 req_rep_socket.send(struct.pack('<f', n))
                 
     except KeyboardInterrupt:
@@ -52,25 +52,33 @@ def req_rep_handler(address: str = req_rep_address):
     return True
 
 # ----------------------------------------- # 
-
-def pub_sub_handler(address: str = pub_sub_address): 
+def pub_sub_handler(address: str = pub_sub_address):
     context = zmq.Context()
-    pub_sub_socket = context.socket(zmq.SUB)
-    pub_sub_socket.connect(address)
-    pub_sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")
+    subscriber = context.socket(zmq.SUB)
+    subscriber.connect("tcp://127.0.0.1:8888")
+    subscriber.setsockopt_string(zmq.SUBSCRIBE, "") 
+    # subscriber.setsockopt(zmq.RCVTIMEO, 1000)
+
     received_updates = []
+    # try:
+    print('Starting pubsub...\n')
+    
     try:
         while True:
-            update = pub_sub_socket.recv()
-            print('{}\n'.format(update.decode))
-            received_updates.append(update)
-            
-    except KeyboardInterrupt: 
-        pub_sub_socket.close()
+            try:
+                update = subscriber.recv_string()
+                print("Received message:", update)
+            except zmq.error.Again as e:
+                # Handle timeout exception
+                print("Timeout occurred:", e)
+                continue  # Continue listening for messages after timeout
+    except KeyboardInterrupt:
+        subscriber.close()
+        context.term()
         
-        with open('./updates_backlog.pickle', 'wb') as f: 
+        with open('./updates_backlog.pickle', 'wb') as f:
             pickle.dump(received_updates, f)
-    
+
     return True
 
 # ----------------------------------------- #
@@ -99,11 +107,13 @@ if __name__ == '__main__':
     p1 = mp.Process(target=req_rep_handler)
     p2 = mp.Process(target=launch_fast)
     # p3 = mp.Process(target=pub_sub_handler)
-    
-    p2.start()
-    p1.start()
+
     # p3.start()
+    # time.sleep(1)
+    # p1.start()
+    # time.sleep(1)
+    p2.start()
     
-    p1.join()
+    # p1.join()
     p2.join()
     # p3.join()

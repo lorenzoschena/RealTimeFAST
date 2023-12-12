@@ -25,11 +25,19 @@ module zmq_client_module
    use iso_c_binding
    implicit none
    interface 
+   
          function zmq_client(socket_address, request) result(out) bind(C, name='zmq_client')
             use, intrinsic :: iso_c_binding
             character(kind=c_char), dimension(*), intent(in) :: socket_address, request
             type(c_ptr) :: out
          end function zmq_client
+
+         function zmq_broadcast(socket_address_pub, message), result(out) bind(C, name='zmq_broadcast')
+            use, intrinsic :: iso_c_binding
+            character(kind=c_char), dimension(*), intent(in) :: socket_address_pub, message
+            type(c_ptr) :: out 
+         end function zmq_broadcast
+
    end interface
 end module zmq_client_module
 !----------------------------------------------------------------------------------------------------------------------------------
@@ -70,6 +78,21 @@ subroutine zmq_req(socket_address, request, received_float)
    received_float = tmp_float
 
 end subroutine zmq_req
+
+
+subroutine zmq_pub(socket_address_pub, message)
+   use iso_c_binding
+   use zmq_client_module, only: zmq_broadcast
+   implicit none 
+
+   character(*)                            :: socket_address_pub, message
+   type(c_ptr)                             :: response_ptr_pub 
+   real(c_float), pointer                  :: tmp_float_pub
+   real(c_float)                           :: received_float_pub
+
+   response_ptr_pub = zmq_broadcast(socket_address_pub, message)
+
+
 ! -------------------------------------------------------------------------------------------------------------------------------
 ! ---------------------- ZMQ Broadcaster module(s) ---------------------------
 ! 1. Open the socket
