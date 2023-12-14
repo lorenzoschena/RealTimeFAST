@@ -87,7 +87,7 @@ def launch_fast():
     FAST_EXE  = '/usr/local/bin/openfast'  # Location of a FAST exe (and dll)
     ref_dir   = './templateDir/'        # Folder where the fast input files are located (will be copied)
     main_file = 'Main02.fst'            # Main file in ref_dir, used as a template
-    work_dir  = './TemplateDir/'         # Output folder (will be created)
+    work_dir  = './TemplateDir2/'         # Output folder (will be created)
     PARAMS = []                         # leave it like this for future tests
     
     BaseDict = {'TMax': 500.0, 'DT': 0.005, '__name__': 'Main01'}

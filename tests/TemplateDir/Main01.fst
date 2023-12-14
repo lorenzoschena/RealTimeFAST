@@ -69,3 +69,11 @@ False         LinOutMod     - Write module-level linearization output files in a
 1             VTK_type      - Type of VTK visualization data: (switch) {1=surfaces; 2=basic meshes (lines/points); 3=all meshes (debug)} [unused if WrVTK=0]
 True          VTK_fields    - Write mesh fields to VTK data files? (flag) {true/false} [unused if WrVTK=0]
 15            VTK_fps       - Frame rate for VTK output (frames per second){will use closest integer multiple of DT} [used only if WrVTK=2 or WrVTK=3]
+---------------------- ZMQ Communication ---------------------------------------
+1             ZmqOn         - ZMQ communication (flag)
+"https://localhost:5555" ZmqInAddress  - REQ-REP localhost address
+2             ZmqInNbr      - Number of parameters to be requested
+"VelH, VelV"  ZmqInChannels - Channels to be requested at communication time
+"unused"      ZmqOutAddress - PUB-SUB localhost address
+0             ZmqOutNbr     - Number of channels to be broadcasted
+"unused"      ZmqOutChannels - Channels to be broadcasterd at communication time

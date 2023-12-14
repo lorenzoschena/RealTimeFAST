@@ -3,7 +3,7 @@ FAST          Certification - Test #18: NREL 5.0 MW Baseline Wind Turbine (Onsho
 ---------------------- SIMULATION CONTROL --------------------------------------
 True          Echo          - Echo input data to <RootName>.ech (flag)
 "FATAL"       AbortLevel    - Error level when simulation should abort (string) {"WARNING", "SEVERE", "FATAL"}
-20.0          TMax          - Total run time (s)
+500.0         TMax          - Total run time (s)
 0.005         DT            - Recommended module time step (s)
 2             InterpOrder   - Interpolation order for input/output time history (-) {1=linear, 2=quadratic}
 0             NumCrctn      - Number of correction iterations (-) {0=explicit calculation, i.e., no corrections}
@@ -70,10 +70,10 @@ False         LinOutMod     - Write module-level linearization output files in a
 True          VTK_fields    - Write mesh fields to VTK data files? (flag) {true/false} [unused if WrVTK=0]
 15            VTK_fps       - Frame rate for VTK output (frames per second){will use closest integer multiple of DT} [used only if WrVTK=2 or WrVTK=3]
 ---------------------- ZMQ Communication ---------------------------------------
-True             ZmqOn         - ZMQ communication (flag)
-"https://localhost:5555"      ZmqInAddress  - REQ-REP localhost address 
-2             ZmqInNbr      - Number of parameters to be requested 
-"VelH, VelV"      ZmqInChannels - Channels to be requested at communication time 
-"unused"      ZmqOutAddress - PUB-SUB localhost address 
-0             ZmqOutNbr     - Number of channels to be broadcasted  
-"unused"      ZmqOutChannels - Channels to be broadcasterd at communication time 
+True          ZmqOn         - ZMQ communication (flag)
+"https://localhost:5555" ZmqInAddress  - REQ-REP localhost address
+2             ZmqInNbr      - Number of parameters to be requested
+"VelH, VelV"  ZmqInChannels - Channels to be requested at communication time
+"unused"      ZmqOutAddress - PUB-SUB localhost address
+0             ZmqOutNbr     - Number of channels to be broadcasted
+"unused"      ZmqOutChannels - Channels to be broadcasterd at communication time
