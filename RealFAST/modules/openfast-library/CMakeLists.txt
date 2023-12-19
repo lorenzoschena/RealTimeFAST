@@ -72,8 +72,10 @@ add_library(openfast_postlib
   src/FAST_Solver.f90
   src/zmq_client.c
 )
+# find_package(cJSON REQUIRED)
+# include_directories(${CJSON_INCLUDE_DIRS})
 
-target_link_libraries(openfast_postlib openfast_prelib foamfastlib scfastlib zmq)
+target_link_libraries(openfast_postlib openfast_prelib foamfastlib scfastlib zmq cjson)
 
 target_include_directories(openfast_postlib PUBLIC 
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>  

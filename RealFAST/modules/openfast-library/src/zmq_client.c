@@ -8,6 +8,7 @@
 #include <string.h>
 #include <math.h>
 #include <zmq.h>
+#include </home/cJSON/cJSON.h>
 
 void *publisher = NULL;
 
@@ -100,16 +101,19 @@ float *zmq_req_rep(const char *socket_address, const char *request) {
     return NULL; // Return NULL to indicate failure
 }
 
-int *zmq_init_pub(const char *req_address) {
+int zmq_init_pub(const char *req_address) {
     void *context = zmq_ctx_new();
     publisher = zmq_socket(context, ZMQ_PUB);
-    
+
+    printf("C... %s\n", req_address);
+
     int rc = zmq_connect(publisher, req_address);
+
     if (rc != 0) {
-        printf("Error connecting: %s\n", zmq_strerror(errno));
+        printf("Error binding at %s : %s\n", req_address, zmq_strerror(errno));
         zmq_close(publisher);
         zmq_ctx_destroy(context);
-        return -1; // Return error code if connection fails
+        return -1; // Return error code if binding fails
     }
 
     printf("Established connection at address %s \n", req_address);
@@ -131,4 +135,37 @@ int zmq_broadcast(const char *message) {
     }
 
     return rc; // Return the result of zmq_send
+}
+
+
+int zmq_broadcast_2(const void *data, size_t size, const char *names) {
+    if (publisher == NULL) {
+        printf("Socket not initialized. Call zmq_initialize_publisher first.\n");
+        return -1; // Return error if socket is not initialized
+    }
+    printf("Received data : %d", data);
+    printf("Received names: %s", names);
+
+    cJSON *data_array = cJSON_CreateArray();
+    for (size_t i=0; i < size / sizeof(float); i++){
+        cJSON_AddItemToArray(data_array, cJSON_CreateNumber(((float *)data)[i]));
+    }
+
+    cJSON *root = cJSON_CreateObject(); 
+    cJSON_AddStringToObject(root, "names", names); 
+    cJSON_AddItemToObject(root, "data", data_array); 
+
+    char *json_msg = cJSON_PrintUnformatted(root); 
+
+    // Send the JSON message
+    int rc = zmq_send(publisher, json_msg, strlen(json_msg), 0);
+    if (rc < 0) {
+        printf("Error sending message: %s\n", zmq_strerror(errno));
+    }
+
+    // Free cJSON objects and the JSON message
+    cJSON_Delete(root);
+    free(json_msg);
+
+    return 0; // Success
 }

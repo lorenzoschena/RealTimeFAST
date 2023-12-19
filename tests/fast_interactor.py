@@ -114,6 +114,6 @@ if __name__ == '__main__':
     # time.sleep(1)
     p2.start()
     
-    p1.join()
+    # p1.join()
     p2.join()
     # p3.join()
