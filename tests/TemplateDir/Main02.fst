@@ -75,5 +75,8 @@ True             ZmqOn         - ZMQ communication (flag)
 2             ZmqInNbr      - Number of parameters to be requested 
 "VelH, VelV"      ZmqInChannels - Channels to be requested at communication time 
 "tcp://127.0.0.1:5556"      ZmqOutAddress - PUB-SUB localhost address 
-3             ZmqOutNbr     - Number of channels to be broadcasted  
-"Wind1VelX, Wind1VelY, Wind1VelZ"      ZmqOutChannels - Channels to be broadcasterd at communication time 
+4             ZmqOutNbr     - Number of channels to be broadcasted  
+"Wind1VelX"
+"Azimuth"
+"GenTq"
+"GenPwr"   ZmqOutChannels - Channels to be broadcasterd at communication time 

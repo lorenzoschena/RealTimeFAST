@@ -1,7 +1,7 @@
 
 FAST Summary File
 
-Predictions were generated on 19-Dec-2023 at 23:45:20 using OpenFAST, compiled as a 64-bit application using double precision at commit v3.5.1-dirty
+Predictions were generated on 21-Dec-2023 at 01:10:00 using OpenFAST, compiled as a 64-bit application using double precision at commit v3.5.1-dirty
   compiled with
     NWTC Subroutine Library
     ElastoDyn
@@ -38,7 +38,7 @@ Number of correction iterations:  0
   ElastoDyn           5.000E-03              1
   AeroDyn             5.000E-03              1
   ServoDyn            5.000E-03              1
-  FAST output files   5.000E-03              1
+  FAST output files   1.000E-02              2^-1
 
 
    Requested Channels in FAST Output File(s)  

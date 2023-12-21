@@ -105,8 +105,6 @@ int zmq_init_pub(const char *req_address) {
     void *context = zmq_ctx_new();
     publisher = zmq_socket(context, ZMQ_PUB);
 
-    printf("C... %s\n", req_address);
-
     int rc = zmq_connect(publisher, req_address);
 
     if (rc != 0) {
@@ -120,52 +118,66 @@ int zmq_init_pub(const char *req_address) {
     return 0; // Return success
 }
 
+// int zmq_broadcast(const char *message) {
+//     if (publisher == NULL) {
+//         printf("Socket not initialized. Call zmq_initialize_publisher first.\n");
+//         return -1; // Return error if socket is not initialized
+//     }
 
-int zmq_broadcast(const char *message) {
+//     size_t msg_len = strlen(message);
+//     printf("Sending message: %s\n", message);
+//     int rc = zmq_send(publisher, message, msg_len, 0);
+//     if (rc < 0) {
+//         printf("Error sending message: %s\n", zmq_strerror(errno));
+//     }
+
+//     return rc; // Return the result of zmq_send
+// }
+
+
+int zmq_broadcast(const char *data, const char *names) {
     if (publisher == NULL) {
         printf("Socket not initialized. Call zmq_initialize_publisher first.\n");
         return -1; // Return error if socket is not initialized
     }
+    printf("inside C broadcasting routine.... \n");
 
-    size_t msg_len = strlen(message);
-    printf("Sending message: %s\n", message);
-    int rc = zmq_send(publisher, message, msg_len, 0);
-    if (rc < 0) {
-        printf("Error sending message: %s\n", zmq_strerror(errno));
-    }
+    size_t size = 0;
 
-    return rc; // Return the result of zmq_send
-}
+    printf("Received names: %s\n", names);
+    printf("Received string: %s\n", data);
 
+    // // Calculate the size of the array
+    // while (data[size] != 0) {
+    //     ++size;
+    // }
 
-int zmq_broadcast_2(const void *data, size_t size, const char *names) {
-    if (publisher == NULL) {
-        printf("Socket not initialized. Call zmq_initialize_publisher first.\n");
-        return -1; // Return error if socket is not initialized
-    }
-    printf("Received data : %d", data);
-    printf("Received names: %s", names);
+    // printf("Received data of size %zu\n", size);
+    // for (size_t i = 0; i < size; ++i) {
+    //     printf(" %lf", data[i]);
+    // }
+    // printf("\n");
 
-    cJSON *data_array = cJSON_CreateArray();
-    for (size_t i=0; i < size / sizeof(float); i++){
-        cJSON_AddItemToArray(data_array, cJSON_CreateNumber(((float *)data)[i]));
-    }
+    // cJSON *data_array = cJSON_CreateArray();
+    // for (size_t i=0; i < size ; i++){
+    //     cJSON_AddItemToArray(data_array, cJSON_CreateNumber(data[i]));
+    // }
 
-    cJSON *root = cJSON_CreateObject(); 
-    cJSON_AddStringToObject(root, "names", names); 
-    cJSON_AddItemToObject(root, "data", data_array); 
+    // cJSON *root = cJSON_CreateObject(); 
+    // cJSON_AddStringToObject(root, "names", names); 
+    // cJSON_AddItemToObject(root, "data", data_array); 
 
-    char *json_msg = cJSON_PrintUnformatted(root); 
+    // char *json_msg = cJSON_PrintUnformatted(root); 
 
-    // Send the JSON message
-    int rc = zmq_send(publisher, json_msg, strlen(json_msg), 0);
-    if (rc < 0) {
-        printf("Error sending message: %s\n", zmq_strerror(errno));
-    }
+    // // Send the JSON message
+    // int rc = zmq_send(publisher, json_msg, strlen(json_msg), 0);
+    // if (rc < 0) {
+    //     printf("Error sending message: %s\n", zmq_strerror(errno));
+    // }
 
-    // Free cJSON objects and the JSON message
-    cJSON_Delete(root);
-    free(json_msg);
+    // // Free cJSON objects and the JSON message
+    // cJSON_Delete(root);
+    // free(json_msg);
 
     return 0; // Success
 }
