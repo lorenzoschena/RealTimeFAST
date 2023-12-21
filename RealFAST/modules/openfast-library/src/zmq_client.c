@@ -341,9 +341,11 @@ float *zmq_req_rep(const char *socket_address, const char *request) {
     if (recv_size > 0 && recv_size == sizeof(float *)) {
         printf("Received pointer to array\n");
         return received_value; // Return pointer to the received float array
-    } else {
+    } 
+    else 
+    {
         printf("C: Error receiving float array\n");
-    return NULL;
+        return NULL;
     }
 }
 
