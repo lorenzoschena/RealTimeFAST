@@ -10,7 +10,10 @@
 #include <zmq.h>
 #include </home/cJSON/cJSON.h>
 
+// Initializing publisher and requester as global variables
+
 void *publisher = NULL;
+void *requester = NULL;
 
 void printString(const char *str) {
     printf("String: ");
@@ -22,85 +25,237 @@ void printString(const char *str) {
     printf("\\0");
 }
 
-float *zmq_req_rep(const char *socket_address, const char *request) {
-    // add null-termination from Fortran strings inputs 
 
-    // printf("received request from fortran in C: %s \n\n", request);
+// float *zmq_req_rep(const char *socket_address, const char *request) {
+//     // add null-termination from Fortran strings inputs 
 
-    size_t socket_len = strlen(socket_address);
-    size_t request_len = strlen(request);
+//     // printf("received request from fortran in C: %s \n\n", request);
 
-    int send_status_req;
-    int send_status_data;
-    // Allocate memory for null-terminated strings
-    // char *socket_copy = malloc(socket_len + 1);
-    // char *request_copy = malloc(request_len + 1);
+//     size_t socket_len = strlen(socket_address);
+//     size_t request_len = strlen(request);
 
-    // // Copy received strings and null-terminate them
-    // strncpy(socket_copy, socket_address, socket_len);
-    // socket_copy[socket_len +1] = '\0';
+//     int send_status_req;
+//     int send_status_data;
+//     // Allocate memory for null-terminated strings
+//     // char *socket_copy = malloc(socket_len + 1);
+//     // char *request_copy = malloc(request_len + 1);
 
-    // strncpy(request_copy, request, request_len);
-    // request_copy[request_len +1] = '\0';
+//     // // Copy received strings and null-terminate them
+//     // strncpy(socket_copy, socket_address, socket_len);
+//     // socket_copy[socket_len +1] = '\0';
 
-    void *context = zmq_ctx_new();
+//     // strncpy(request_copy, request, request_len);
+//     // request_copy[request_len +1] = '\0';
 
-    if (context == NULL) {
-        perror("Error in opening ZMQ comm");
-        return NULL; // Return NULL to indicate failure
+//     void *context = zmq_ctx_new();
+
+//     if (context == NULL) {
+//         perror("Error in opening ZMQ comm");
+//         return NULL; // Return NULL to indicate failure
+//     }
+
+//     void *requester = zmq_socket(context, ZMQ_REQ);
+//     if (requester == NULL) {
+//         perror("Error in opening ZMQ comm");
+//         zmq_ctx_destroy(context);
+//         return NULL; // Return NULL to indicate failure
+//     }
+//     // printf("Connecting...");
+
+//     int rc = zmq_connect(requester, socket_address);
+
+//     if (rc != 0) {
+//         perror("Error in connecting to specified address");
+//         fprintf(stderr, "Address: %s\n", socket_address);
+//         zmq_close(requester);
+//         zmq_ctx_destroy(context);
+//         return NULL; // Return NULL to indicate failure
+//     }
+
+//     // printf("C: Sending request %s to socket... \n", request);
+//     send_status_req = zmq_send(requester, request, strlen(request), 0);
+
+//     if (send_status_req >= 0) {
+//         printf("C: Request sent successfully.\n");
+//     } else {
+//         printf("C: Error sending request: %s\n", zmq_strerror(errno));
+//     }
+
+//     float *received_value = (float *)malloc(sizeof(float));
+
+//     int recv_size = zmq_recv(requester, (char *)received_value, sizeof(float), 0);
+//     if (recv_size == sizeof(float)) {
+//         printf("C: Received float value: %f\n", *received_value);
+//         return received_value; // Return pointer to received float data
+
+//     } else {
+//         free(received_value); // Free the allocated memory in case of failure
+//         printf("C: Error receiving float value\n");
+//         zmq_close(requester);
+//         zmq_ctx_destroy(context);
+
+//         return NULL;
+//     }
+
+//     zmq_close(requester);
+//     zmq_ctx_destroy(context);
+//     free(socket_address);
+//     free(request);
+
+//     return NULL; // Return NULL to indicate failure
+// }
+// String manipulation before passing to ZMQ
+
+
+char **split(const char *str, char delimiter, int *count) {
+    int token_count = 0;
+    int str_len = strlen(str);
+
+    // Count the number of tokens
+    for (int i = 0; i < str_len; i++) {
+        if (str[i] == delimiter) {
+            token_count++;
+        }
     }
+    token_count++;  // Add one for the last token
 
-    void *requester = zmq_socket(context, ZMQ_REQ);
-    if (requester == NULL) {
-        perror("Error in opening ZMQ comm");
-        zmq_ctx_destroy(context);
-        return NULL; // Return NULL to indicate failure
-    }
-    // printf("Connecting...");
-
-    int rc = zmq_connect(requester, socket_address);
-
-    if (rc != 0) {
-        perror("Error in connecting to specified address");
-        fprintf(stderr, "Address: %s\n", socket_address);
-        zmq_close(requester);
-        zmq_ctx_destroy(context);
-        return NULL; // Return NULL to indicate failure
-    }
-
-    // printf("C: Sending request %s to socket... \n", request);
-    send_status_req = zmq_send(requester, request, strlen(request), 0);
-
-    if (send_status_req >= 0) {
-        printf("C: Request sent successfully.\n");
-    } else {
-        printf("C: Error sending request: %s\n", zmq_strerror(errno));
-    }
-
-    float *received_value = (float *)malloc(sizeof(float));
-
-    int recv_size = zmq_recv(requester, (char *)received_value, sizeof(float), 0);
-    if (recv_size == sizeof(float)) {
-        printf("C: Received float value: %f\n", *received_value);
-        return received_value; // Return pointer to received float data
-
-    } else {
-        free(received_value); // Free the allocated memory in case of failure
-        printf("C: Error receiving float value\n");
-        zmq_close(requester);
-        zmq_ctx_destroy(context);
-
+    char **tokens = malloc(token_count * sizeof(char *));
+    if (tokens == NULL) {
+        *count = 0;
         return NULL;
     }
 
-    zmq_close(requester);
-    zmq_ctx_destroy(context);
-    free(socket_address);
-    free(request);
+    int token_index = 0;
+    int token_start = 0;
+    for (int i = 0; i <= str_len; i++) {
+        if (str[i] == delimiter || str[i] == '\0') {
+            int token_length = i - token_start;
+            tokens[token_index] = malloc((token_length + 1) * sizeof(char));
+            if (tokens[token_index] == NULL) {
+                *count = token_index;
+                for (int j = 0; j < token_index; j++) {
+                    free(tokens[j]);
+                }
+                free(tokens);
+                return NULL;
+            }
+            strncpy(tokens[token_index], str + token_start, token_length);
+            tokens[token_index][token_length] = '\0';
+            token_index++;
+            token_start = i + 1;
+        }
+    }
 
-    return NULL; // Return NULL to indicate failure
+    *count = token_count;
+    return tokens;
 }
 
+char *createJSONString(const char *data, const char *names) {
+    cJSON *root = cJSON_CreateObject();
+    
+    int data_count, names_count;
+    char **data_tokens = split(data, ';', &data_count);
+    char **names_tokens = split(names, ';', &names_count);
+
+    if (root && data_tokens && names_tokens && data_count == names_count) {
+        for (int i = 0; i < data_count; i++) {
+            // Check for empty string in names before adding to JSON
+            if (strcmp(names_tokens[i], "") != 0) {
+                cJSON_AddItemToObject(root, names_tokens[i], cJSON_CreateNumber(atof(data_tokens[i])));
+            }
+            free(data_tokens[i]);
+            free(names_tokens[i]);
+        }
+        free(data_tokens);
+        free(names_tokens);
+
+        char *jsonString = cJSON_Print(root);
+        cJSON_Delete(root);
+        return jsonString;
+    } else {
+        cJSON_Delete(root);
+        if (data_tokens) {
+            for (int i = 0; i < data_count; i++) {
+                free(data_tokens[i]);
+            }
+            free(data_tokens);
+        }
+        if (names_tokens) {
+            for (int i = 0; i < names_count; i++) {
+                free(names_tokens[i]);
+            }
+            free(names_tokens);
+        }
+        return NULL;
+    }
+}
+
+char *cJSON_keys_to_string(cJSON *json, const char *delimiter) {
+    char *result = NULL;
+    cJSON *child = json->child;
+    size_t total_len = 0;
+
+    // Calculate the total length needed for the keys string
+    while (child != NULL) {
+        total_len += strlen(child->string) + strlen(delimiter) + 1; // +1 for delimiter
+
+        child = child->next;
+    }
+
+    // Allocate memory for the keys string
+    result = (char *)malloc(total_len + 1); // +1 for null terminator
+    if (result == NULL) {
+        return NULL;
+    }
+
+    // Build the keys string separated by the delimiter
+    child = json->child;
+    result[0] = '\0'; // Initialize the string
+    while (child != NULL) {
+        strcat(result, child->string);
+        if (child->next != NULL) {
+            strcat(result, delimiter);
+        }
+        child = child->next;
+    }
+
+    return result;
+}
+
+char *cJSON_values_to_string(cJSON *json, const char *delimiter) {
+    char *result = NULL;
+    cJSON *child = json->child;
+    size_t total_len = 0;
+
+    // Calculate the total length needed for the values string
+    while (child != NULL) {
+        total_len += strlen(cJSON_Print(child)) + strlen(delimiter) + 1; // +1 for delimiter
+
+        child = child->next;
+    }
+
+    // Allocate memory for the values string
+    result = (char *)malloc(total_len + 1); // +1 for null terminator
+    if (result == NULL) {
+        return NULL;
+    }
+
+    // Build the values string separated by the delimiter
+    child = json->child;
+    result[0] = '\0'; // Initialize the string
+    while (child != NULL) {
+        strcat(result, cJSON_Print(child));
+        if (child->next != NULL) {
+            strcat(result, delimiter);
+        }
+        child = child->next;
+    }
+
+    return result;
+}
+
+
+// ------------------------------- Key ZMQ Helpers ------------------------- //
 int zmq_init_pub(const char *req_address) {
     void *context = zmq_ctx_new();
     publisher = zmq_socket(context, ZMQ_PUB);
@@ -114,26 +269,27 @@ int zmq_init_pub(const char *req_address) {
         return -1; // Return error code if binding fails
     }
 
-    printf("Established connection at address %s \n", req_address);
+    printf("Established PUB - SUB connection at address %s \n", req_address);
     return 0; // Return success
 }
 
-// int zmq_broadcast(const char *message) {
-//     if (publisher == NULL) {
-//         printf("Socket not initialized. Call zmq_initialize_publisher first.\n");
-//         return -1; // Return error if socket is not initialized
-//     }
 
-//     size_t msg_len = strlen(message);
-//     printf("Sending message: %s\n", message);
-//     int rc = zmq_send(publisher, message, msg_len, 0);
-//     if (rc < 0) {
-//         printf("Error sending message: %s\n", zmq_strerror(errno));
-//     }
+int zmq_init_req_rep(const char *req_address) {
+    void *context = zmq_ctx_new();
+    requester = zmq_socket(context, ZMQ_REQ);
 
-//     return rc; // Return the result of zmq_send
-// }
+    int rc = zmq_connect(requester, req_address);
 
+    if (rc != 0) {
+        printf("Error binding at %s : %s\n", req_address, zmq_strerror(errno));
+        zmq_close(requester);
+        zmq_ctx_destroy(context);
+        return -1; // Return error code if binding fails
+    }
+
+    printf("Established REQ - REP connection at address %s \n", req_address);
+    return 0; // Return success
+}
 
 int zmq_broadcast(const char *data, const char *names) {
     if (publisher == NULL) {
@@ -147,37 +303,52 @@ int zmq_broadcast(const char *data, const char *names) {
     printf("Received names: %s\n", names);
     printf("Received string: %s\n", data);
 
-    // // Calculate the size of the array
-    // while (data[size] != 0) {
-    //     ++size;
-    // }
+    char *jsonString = createJSONString(data, names);
 
-    // printf("Received data of size %zu\n", size);
-    // for (size_t i = 0; i < size; ++i) {
-    //     printf(" %lf", data[i]);
-    // }
-    // printf("\n");
-
-    // cJSON *data_array = cJSON_CreateArray();
-    // for (size_t i=0; i < size ; i++){
-    //     cJSON_AddItemToArray(data_array, cJSON_CreateNumber(data[i]));
-    // }
-
-    // cJSON *root = cJSON_CreateObject(); 
-    // cJSON_AddStringToObject(root, "names", names); 
-    // cJSON_AddItemToObject(root, "data", data_array); 
-
-    // char *json_msg = cJSON_PrintUnformatted(root); 
-
-    // // Send the JSON message
-    // int rc = zmq_send(publisher, json_msg, strlen(json_msg), 0);
-    // if (rc < 0) {
-    //     printf("Error sending message: %s\n", zmq_strerror(errno));
-    // }
-
-    // // Free cJSON objects and the JSON message
-    // cJSON_Delete(root);
-    // free(json_msg);
+    if (jsonString) {
+        printf("JSON String ready to be published: %s\n", jsonString);
+        zmq_send(publisher, jsonString, strlen(jsonString), 0);
+        free(jsonString); 
+    } else {
+        printf("Failed to create JSON string\n");
+    }
 
     return 0; // Success
 }
+
+
+float *zmq_req_rep(const char *socket_address, const char *request) {
+    
+    int req_count, send_status_req;
+    int max_floats = sizeof(request); 
+
+    char **reqtoken = split(request, ';', &req_count);
+
+    // printf("C: Sending request %s to socket... \n", request);
+    send_status_req = zmq_send(requester, reqtoken, strlen(request), 0);
+
+    if (send_status_req >= 0) {
+        printf("C: Request sent successfully.\n");
+    } else {
+        printf("C: Error sending request: %s\n", zmq_strerror(errno));
+    }
+
+    float *received_value = (float *)malloc(sizeof(float));
+
+    // int recv_size = zmq_recv(requester, (char *)received_value, max_floats * sizeof(float), 0);
+    int recv_size = zmq_recv(requester, (char *)&received_value, sizeof(float *), 0);
+
+    if (recv_size > 0 && recv_size == sizeof(float *)) {
+        printf("Received pointer to array\n");
+        return received_value; // Return pointer to the received float array
+    } else {
+        printf("C: Error receiving float array\n");
+    return NULL;
+    }
+}
+
+//     free(socket_address);
+//     free(request);
+
+//     return NULL; // Return NULL to indicate failure
+// }

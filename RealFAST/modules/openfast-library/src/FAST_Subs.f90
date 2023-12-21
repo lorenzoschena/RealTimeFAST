@@ -32,7 +32,13 @@ module zmq_client_module
             type(c_ptr) :: out
          end function zmq_req_rep
       end interface
-      
+   !    interface 
+   !    FUNCTION zmq_req_rep(socket_address, request) BIND(C, NAME="zmq_req_rep")
+   !       IMPORT :: C_PTR, C_CHAR
+   !       CHARACTER(KIND=C_CHAR), INTENT(IN) :: socket_address, request
+   !       TYPE(C_PTR) :: zmq_req_rep  ! Return a C pointer
+   !   END FUNCTION zmq_req_rep
+   !    end interface 
       ! interface 
       !       function zmq_broadcast(message) result(out) bind(C, name='zmq_broadcast')
       !       use, intrinsic :: iso_c_binding
@@ -40,6 +46,12 @@ module zmq_client_module
       !       type(c_ptr) :: out 
       !    end function zmq_broadcast
       ! end interface
+      interface 
+      function zmq_req_rep_free(ptr) BIND(C, NAME="zmq_req_rep_free")
+         IMPORT :: C_PTR
+         TYPE(C_PTR), VALUE :: ptr  
+      end function zmq_req_rep_free
+      end interface
 
       interface
          function zmq_broadcast(arr, names) result(zmq_broadcast_out) bind(C, name='zmq_broadcast')
@@ -62,34 +74,55 @@ end interface
 
 end module zmq_client_module
 !----------------------------------------------------------------------------------------------------------------------------------
+function strcat(input_strings, num_strings) result(output_string)
+   character(len=*), dimension(:) :: input_strings
+   character(len=1000) :: output_string
+   integer :: num_strings, i
 
+   output_string = ''
+
+   do i = 1, num_strings
+       if (i /= 1) then
+           output_string = trim(adjustl(output_string)) // ';'
+       end if
+       output_string = output_string // trim(adjustl(input_strings(i)))
+   end do
+
+end function strcat
 ! ----- ZMQ Requester ----------------------------------------------------------------------------------------------------------------------------------
-subroutine zmq_req(socket_address, request, received_float)
-   use iso_c_binding
-   use zmq_client_module, only: zmq_req_rep
-   implicit none 
+subroutine zmq_req(socket_address, request, request_size, values_array)
+use iso_c_binding
+use zmq_client_module, only: zmq_req_rep, zmq_req_rep_free
+implicit none    
 
-   character(*), intent(in)                :: socket_address
-   character(*), intent(in)                :: request(:) ! array of chracters 
-   type(c_ptr)                             :: response_ptr
-   real(c_float), pointer                  :: tmp_float
-   real(c_float)                           :: received_float
+character(len=*)                           :: socket_address
+integer, intent(in)                        :: request_size
+! --------------------------------------------------------------
+character(len=:), allocatable, intent(in)  :: request(:)
 
-   ! response_ptr = zmq_req_rep(socket_address, request) ! check consisntency with Fast Type troubles with c interface 
-   ! ! one unique string to send to C, better on the Fortran side, messy with string 
+real(c_double), dimension(:), pointer                :: received_values
+type(c_ptr)                                :: response_ptr
+real, dimension(request_size)              :: values_array
+real(kind=C_DOUBLE), dimension(request_size) :: array
+integer                                    :: num_values, i
 
-   ! if (c_associated(response_ptr)) then
-   !       ! Allocate memory in Fortran and associate with the received pointer
-   !       call c_f_pointer(response_ptr, tmp_float)
-         
-   !       ! Use received_float as needed
-   !       ! print *, "OpenFAST received float value: ", tmp_float
-   ! else
-   !       ! print *, "Error receiving float value from C"
-   ! end if
-   !request = request(:0)
+character(len=2048) :: concatreq = ''
+do i = 1, request_size
+    concatreq = trim(adjustl(concatreq)) // trim(adjustl(request(i))) // ";"
+end do
 
-   ! print *, "Received wind speed in subroutine zmq, u_inf = ", tmp_float
+response_ptr = zmq_req_rep(socket_address, concatreq)
+
+if (c_associated(response_ptr)) then
+   call c_f_pointer(response_ptr, received_values, [num_values])
+
+   else
+      print *, "Failed to obtain response"
+endif
+
+do i= 1, request_size
+   values_array(i) = received_values(i)
+end do 
 
    ! received_float = tmp_float
    ! Set as ErrStat // ErrMsg for consistency with openfast ""ErrId_Severe, Fatal, None""
@@ -141,14 +174,6 @@ subroutine zmq_pub(array, names, ZmqOutNbr)
    concatenated_names = trim(concatenated_names) // c_null_char
    concatenatedString = trim(concatenatedString) // c_null_char
 
-   print *, "Fortran side \n"
-
-   print *, " Preparing data to publish"
-   print *, " data array", array 
-   print *, " data names", trim(concatenated_names)
-   print *, "size = ", ZmqOutNbr
-   print *, "concatenated string = ", trim(concatenatedString)
-
    response_ptr_pub = zmq_broadcast(concatenatedString, concatenated_names)
 
 end subroutine zmq_pub
@@ -168,6 +193,12 @@ subroutine zmq_pub_init(req_address)
 end subroutine zmq_pub_init
 ! ----------------------------------------------
 
+
+
+
+
+
+! ----------------------------------------------
 MODULE FAST_Subs
 
    USE FAST_Solver
@@ -5434,29 +5465,6 @@ SUBROUTINE FAST_Solution(t_initial, n_t_global, p_FAST, y_FAST, m_FAST, ED, BD, 
       ENDIF
    ENDIF
 
-   
-   ! ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   ! ! End of simulation time step. Broadcast results to ZMQ (assuming that we broadcast at every time step, to be modified later)
-   ! ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   ! if (p_FAST%ZmqOn) then 
-      
-   !    print *, "Allocating array to broadcast..."
-
-   !    CALL AllocAry( ZmqOutChannelsAry, p_FAST%ZmqOutNbr + 2, 'ZmqOutChannelsAry', ErrStat, ErrMsg )
-      
-   !    ! ZmqOutChannelsAry(1) = p_FAST%TurbineID
-   !    ZmqOutChannelsAry(2) = m_FAST%t_global
-
-   !    do i = 1, p_FAST%ZmqOutNbr
-   !       idx = p_FAST%ZmqOutChnlsIdx(i)
-   !       ZmqOutChannelsAry(2 + i) = y_FAST(idx)
-   !    end do
-   
-   !    call zmq_pub(ZmqOutChannelsAry, p_FAST%ZmqOutChannelsNames, p_FAST%ZmqOutNbr)
-
-   ! end if 
-
-
 END SUBROUTINE FAST_Solution
 !----------------------------------------------------------------------------------------------------------------------------------
 ! ROUTINES TO OUTPUT WRITE DATA TO FILE AT EACH REQUSTED TIME STEP
@@ -5585,21 +5593,21 @@ SUBROUTINE WrOutputLine( t, p_FAST, y_FAST, IfWOutput, OpFMOutput, EDOutput, y_A
    CALL FillOutputAry(p_FAST, y_FAST, IfWOutput, OpFMOutput, EDOutput, y_AD, SrvDOutput, HDOutput, SDOutput, ExtPtfmOutput, &
                       MAPOutput, FEAMOutput, MDOutput, OrcaOutput, IceFOutput, y_IceD, y_BD, OutputAry)   
 
+   ! ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   ! ! End of simulation time step. Broadcast results to ZMQ (assuming that we broadcast at every time step, to be modified later)
+   ! ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   
    if (p_FAST%ZmqOn) then 
-      
-      ! print *, "Allocating array to broadcast..."
 
       CALL AllocAry( ZmqOutChannelsAry, p_FAST%ZmqOutNbr + 2, 'ZmqOutChannelsAry', ErrStat, ErrMsg )
       
       ZmqOutChannelsAry = 0.0_ReKi
-      ! print *, "ZmqOutChannelsAry INIT ", ZmqOutChannelsAry
-
+      ! Checked consistency of indexes, OK
       ZmqOutChannelsAry(2) = t 
 
       do i = 1, p_FAST%ZmqOutNbr 
-         ZmqOutChannelsAry(2 + i) = OutputAry(p_FAST%ZmqOutChnlsIdx(i))
+         ZmqOutChannelsAry(2 + i) = OutputAry(p_FAST%ZmqOutChnlsIdx(i) - 1)
       end do
-      ! print *, "ZmqOutChannelsAry FILLED", ZmqOutChannelsAry
 
       call zmq_pub(ZmqOutChannelsAry, p_FAST%ZmqOutChannelsNames, p_FAST%ZmqOutNbr)
 
