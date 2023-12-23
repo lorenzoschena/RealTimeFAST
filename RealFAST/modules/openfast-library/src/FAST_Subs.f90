@@ -28,7 +28,8 @@ module zmq_client_module
       interface 
          function zmq_req_rep(socket_address, request) result(out) bind(C, name='zmq_req_rep')
             use, intrinsic :: iso_c_binding
-            character(kind=c_char), dimension(*), intent(in) :: socket_address, request
+            character(kind=c_char), dimension(*), intent(in)              :: socket_address(*)
+            character(kind=c_char), dimension(*), intent(in)              :: request(*)
             type(c_ptr) :: out
          end function zmq_req_rep
       end interface
@@ -46,12 +47,6 @@ module zmq_client_module
       !       type(c_ptr) :: out 
       !    end function zmq_broadcast
       ! end interface
-      interface 
-      function zmq_req_rep_free(ptr) BIND(C, NAME="zmq_req_rep_free")
-         IMPORT :: C_PTR
-         TYPE(C_PTR), VALUE :: ptr  
-      end function zmq_req_rep_free
-      end interface
 
       interface
          function zmq_broadcast(arr, names) result(zmq_broadcast_out) bind(C, name='zmq_broadcast')
@@ -70,7 +65,15 @@ module zmq_client_module
          character(kind=c_char), dimension(*), intent(in) :: req_address
          integer(c_int) :: out_pub 
       end function zmq_init_pub
-end interface
+      end interface 
+
+      interface 
+         function zmq_init_req(reqrep_address) result(out_req) bind(C, name='zmq_init_req_rep')
+         use, intrinsic :: iso_c_binding
+         character(kind=c_char), dimension(*), intent(in) :: reqrep_address
+         integer(c_int) :: out_req 
+      end function zmq_init_req
+      end interface
 
 end module zmq_client_module
 !----------------------------------------------------------------------------------------------------------------------------------
@@ -92,37 +95,43 @@ end function strcat
 ! ----- ZMQ Requester ----------------------------------------------------------------------------------------------------------------------------------
 subroutine zmq_req(socket_address, request, request_size, values_array)
 use iso_c_binding
-use zmq_client_module, only: zmq_req_rep, zmq_req_rep_free
+use zmq_client_module, only: zmq_req_rep
 implicit none    
 
-character(len=*)                           :: socket_address
+character(len=300)                         :: socket_address
 integer, intent(in)                        :: request_size
+character(len=*), dimension(request_size)  :: request       ! array of strings with requests
+real, dimension(request_size)              :: values_array  ! empty (or not) array to be overwritten
 ! --------------------------------------------------------------
-character(len=:), allocatable, intent(in)  :: request(:)
-
-real(c_double), dimension(:), pointer                :: received_values
+real(c_double), dimension(:), pointer      :: received_values
 type(c_ptr)                                :: response_ptr
-real, dimension(request_size)              :: values_array
-real(kind=C_DOUBLE), dimension(request_size) :: array
 integer                                    :: num_values, i
 
-character(len=2048) :: concatreq = ''
+character(kind=c_char), dimension(:), pointer :: received_string
+real, allocatable :: float_array(:)
+! --------------------------------------------------------------
+
+character(len=300) :: concatreq = ''
 do i = 1, request_size
     concatreq = trim(adjustl(concatreq)) // trim(adjustl(request(i))) // ";"
 end do
 
+concatreq = trim(concatreq) // c_null_char
+socket_address = trim(socket_address) // c_null_char ! to be moved in initialization
+
+! response_ptr = zmq_req_rep(socket_address, concatreq)
 response_ptr = zmq_req_rep(socket_address, concatreq)
+    
+! ! Convert the C pointer to a Fortran character array
+! allocate(received_string(1024))
+! call c_f_pointer(response_ptr, received_string, [1024])
+! print *, "Received measurements", received_string
+! allocate(float_array(request_size))
+! read(received_string, *) float_array
 
-if (c_associated(response_ptr)) then
-   call c_f_pointer(response_ptr, received_values, [num_values])
-
-   else
-      print *, "Failed to obtain response"
-endif
-
-do i= 1, request_size
-   values_array(i) = received_values(i)
-end do 
+! do i= 1, request_size
+!    values_array(i) = float_array(i)
+! end do 
 
    ! received_float = tmp_float
    ! Set as ErrStat // ErrMsg for consistency with openfast ""ErrId_Severe, Fatal, None""
@@ -192,12 +201,19 @@ subroutine zmq_pub_init(req_address)
 
 end subroutine zmq_pub_init
 ! ----------------------------------------------
+subroutine zmq_req_init(reqrep_address)
+   use iso_c_binding
+   use zmq_client_module, only: zmq_init_req
+   implicit none 
 
+   character(*)                               :: reqrep_address
+   integer(c_int)                             :: response_ptr_req_init 
 
+   print *, "Atempting connection from Fortran at ", reqrep_address
 
+   response_ptr_req_init = zmq_init_req(trim(reqrep_address))
 
-
-
+end subroutine zmq_req_init
 ! ----------------------------------------------
 MODULE FAST_Subs
 
@@ -2003,6 +2019,7 @@ SUBROUTINE FAST_Init( p, m_FAST, y_FAST, t_initial, InputFile, ErrStat, ErrMsg, 
    if (p%ZmqOn) then
       ! 1. We open the Broadcast socket (or, if already open, we connect to it)
       call zmq_pub_init(p%ZmqOutAddress)
+      call zmq_req_init(p%ZmqInAddress)
       ! 1. We open the REQ-REP socket (or, if already open, we connect to it)
       ! call zmq_pub_init(Turbine%p_FAST%ZmqInAddress)
       ! p%ZmqOutChannelsAry(1) = TurbID
@@ -3580,6 +3597,7 @@ END DO
       end if
 
       p%ZmqOutAddress = trim(p%ZmqOutAddress) // c_null_char
+
       ! check valid address 
 
       CALL ReadVar( UnIn, InputFile, p%ZmqOutNbr, "ZmqOutNbr", "Number of channels to be broadcasted", ErrStat2, ErrMsg2, UnEc)
@@ -5131,6 +5149,8 @@ SUBROUTINE FAST_Solution(t_initial, n_t_global, p_FAST, y_FAST, m_FAST, ED, BD, 
    CHARACTER(*), PARAMETER                 :: RoutineName = 'FAST_Solution'    
    ! -----------------------------------------------------------------------------
    REAL(DbKi), allocatable, intent(inout)           :: ZmqOutChannelsAry(:)
+   REAL(DbKi)                                       :: ZmqInChannelsAry(p_FAST%ZmqInNbr)
+   character                                        :: tmp_str 
    ! -----------------------------------------------------------------------------
 
    ErrStat  = ErrID_None
@@ -5212,21 +5232,51 @@ SUBROUTINE FAST_Solution(t_initial, n_t_global, p_FAST, y_FAST, m_FAST, ED, BD, 
       !ENDIF
       !ErrMsg = ADJUSTL(TRIM(ErrVar%ErrMsg))
 
-      ! print *, "Zmq red address: ", p_FAST%ZmqInAddress
-      ! print *, "Zmq red address: ", p_FAST%ZmqInChannels
+      if (p_FAST%ZmqOn) then 
+         ! Here we iterate through the channels requested and received from the Zmq socket
+         ! and we substitute relative inputs
+         ! CALL AllocAry( ZmqInChannelsAry, p_FAST%ZmqInNbr, 'ZmqInChannelsAry', ErrStat, ErrMsg )
 
-      ! ! call zmq_req(p_FAST%ZmqInAddress, request, received_float)
+         ZmqInChannelsAry = 0.0_DbKi
 
-      ! ! print *, "Received wind speed in OpenFAST subroutine FAST_Subs, u_inf = ", received_float
+         print *, "Preparing comm with ZMQ at", p_FAST%ZmqInAddress
+         print *, "Requesting.... ", p_FAST%ZmqInChannels
+         print *, "To allocate in ....", ZmqInChannelsAry
 
-      ! IfW%p%FlowField%Uniform%VelH = received_float
-      ! IfW%p%FlowField%Uniform%VelV = 0.0
+         call zmq_req(p_FAST%ZmqInAddress, p_FAST%ZmqInChannels, p_FAST%ZmqInNbr, ZmqInChannelsAry)
+         
+         do i = 1, p_FAST%ZmqInNbr
+            tmp_str = trim(p_FAST%ZmqInChannels(i)) 
 
-      ! IfW%p%FlowField%Uniform%VelGust = 0.0
-      ! IfW%p%FlowField%Uniform%AngleH = 0.0
-      ! IfW%p%FlowField%Uniform%AngleV = 0.0
+            select case (tmp_str) ! Be careful with dependencies 
+               case('VelH')
+                  IfW%p%FlowField%Uniform%VelH = ZmqInChannelsAry(i)
+               case('VelV')
+                  IfW%p%FlowField%Uniform%VelV = ZmqInChannelsAry(i)
+               case('VelGust')
+                  IfW%p%FlowField%Uniform%VelGust = ZmqInChannelsAry(i)
+               case('AngleV')
+                  IfW%p%FlowField%Uniform%AngleV = ZmqInChannelsAry(i)
+               case('AngleH')
+                  IfW%p%FlowField%Uniform%AngleH = ZmqInChannelsAry(i)
+               case('BlPitchCom1')
+                  SrvD%y%BlPitchCom(1) = ZmqInChannelsAry(i)
+               case('BlPitchCom2')
+                  SrvD%y%BlPitchCom(2) = ZmqInChannelsAry(i)
+               case('BlPitchCom3')
+                  SrvD%y%BlPitchCom(3) = ZmqInChannelsAry(i)
+               case('YawRateCom') ! watch out that these are parameters, throw error
+                  SrvD%p%YawRateCom = ZmqInChannelsAry(i)
+               case('YawPosCom')
+                  SrvD%p%YawPosCom  = ZmqInChannelsAry(i)
+               case('GenTrq')
+                  SrvD%y%GenTrq  = ZmqInChannelsAry(i)
+            end select 
+            
+         end do 
+      
+      end if 
 
-   
       CALL CalcOutputs_And_SolveForInputs( n_t_global, t_global_next,  STATE_PRED, m_FAST%calcJacobian, m_FAST%NextJacCalcTime, &
          p_FAST, m_FAST, WriteThisStep, ED, BD, SrvD, AD14, AD, IfW, OpFM, HD, SD, ExtPtfm, MAPp, FEAM, MD, Orca, IceF, IceD, MeshMapData, ErrStat2, ErrMsg2 )
          CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )

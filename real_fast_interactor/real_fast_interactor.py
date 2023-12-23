@@ -7,6 +7,7 @@ import plotly.io as pio
 import threading 
 from IPython.display import display, clear_output
 import time 
+import json  
 
 class RFInteractor: 
     ""
@@ -15,6 +16,7 @@ class RFInteractor:
     def __init__(self, 
                  ZmqInAddress: str = 'tcp://127.0.0.1:5555', 
                  ZmqOutAddress: str = 'tcp://127.0.0.1:5556', 
+                 ZmqInChannels: list = [None], 
                  live_plot: bool = True, 
                  verbose: bool = False): 
         
@@ -35,6 +37,11 @@ class RFInteractor:
             self.subscriber.setsockopt_string(zmq.SUBSCRIBE, "") # for now subscribe to all
 
             self.sub_dict = {}
+        
+        if self.ZmqInAddress is not None: 
+            self.req_context = zmq.Context()
+            self.requester = self.req_context.socket(zmq.REP)
+            self.requester.bind(self.ZmqInAddress)
             
         print('ZMQ Real Time interactor for FAST initialized. \n PUB-SUB protocol: {} | REQ-REP protocol: {}'.format(self.ZmqOutAddress, 
                                                                                                                      self.ZmqInAddress))
@@ -102,6 +109,26 @@ class RFInteractor:
             if count % N_plots_update == 0:
                 self.update_plot()
                 # time.sleep(1)
+                
+                
+    def fast_rep(self, rep_dict):
+        """
+        
+        """
+        req_ = self.requester.recv_string()
+        print(req_)
+        requests = req_.split(";") 
+        
+        response = ';'.join(map(str, rep_dict.values())) + ';'
+        self.requester.send_string(response)
+        pass 
+    
+        
+        
+        
+        
+        
+        
         
                     
 
