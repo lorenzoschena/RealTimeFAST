@@ -62,7 +62,7 @@ MODULE ServoDyn
    INTEGER(IntKi), PARAMETER :: ControlMode_USER      = 3          !< The (ServoDyn-universal) control code for obtaining the control values from a user-defined routine
    INTEGER(IntKi), PARAMETER :: ControlMode_EXTERN    = 4          !< The (ServoDyn-universal) control code for obtaining the control values from Simulink or Labivew
    INTEGER(IntKi), PARAMETER :: ControlMode_DLL       = 5          !< The (ServoDyn-universal) control code for obtaining the control values from a Bladed-Style dynamic-link library
-   INTEGER(IntKi), PARAMETER :: ZmqIn_BldPitch        = 9          !< The (ServoDyn-universal) control code for obtaining the control values from a Zmq socket
+   INTEGER(IntKi), PARAMETER :: ZmqIn                 = 9          !< The (ServoDyn-universal) control code for obtaining the control values from a Zmq socket
 
    INTEGER(IntKi), PARAMETER, PUBLIC :: TrimCase_none   = 0
    INTEGER(IntKi), PARAMETER, PUBLIC :: TrimCase_yaw    = 1
@@ -4587,8 +4587,8 @@ CONTAINS
 
       END IF
 
-
-      IF ( InputFileData%PCMode /= ControlMode_NONE .and. InputFileData%PCMode /= ControlMode_USER .and. InputFileData%PCMode /= ZmqIn_BldPitch )  THEN
+ 
+      IF ( InputFileData%PCMode /= ControlMode_NONE .and. InputFileData%PCMode /= ControlMode_USER .and. InputFileData%PCMode /= ZmqIn )  THEN
          IF ( InputFileData%PCMode /= ControlMode_EXTERN .and. InputFileData%PCMode /= ControlMode_DLL )  &
          CALL SetErrStat( ErrID_Fatal, 'PCMode must be 0, 3, 4, or 5.', ErrStat, ErrMsg, RoutineName )
       ENDIF
@@ -4628,7 +4628,7 @@ CONTAINS
    !...............................................................................................................................
 
             ! checks for yaw control mode:
-      IF ( InputFileData%YCMode /= ControlMode_NONE .and. InputFileData%YCMode /= ControlMode_USER   )  THEN
+      IF ( InputFileData%YCMode /= ControlMode_NONE .and. InputFileData%YCMode /= ControlMode_USER  .and. InputFileData%YCMode /= ZmqIn)  THEN
          IF ( InputFileData%YCMode /= ControlMode_DLL .and. InputFileData%YCMode /= ControlMode_EXTERN )  &
          CALL SetErrStat( ErrID_Fatal, 'YCMode must be 0, 3, 4 or 5.', ErrStat, ErrMsg, RoutineName )
       ENDIF
@@ -4696,14 +4696,14 @@ CONTAINS
 
          IF ( InputFileData%VSContrl == ControlMode_EXTERN )  THEN
             CALL SetErrStat( ErrID_Fatal, 'VSContrl can equal '//TRIM(Num2LStr(ControlMode_EXTERN))//' only when ServoDyn is interfaced with Simulink or LabVIEW.'// &
-                '  Set VSContrl to 0, 1, 3, or 5 or interface ServoDyn with Simulink or LabVIEW.', ErrStat, ErrMsg, RoutineName )
+                '  Set VSContrl to 0, 1, 3, 5 for interface ServoDyn with Simulink or LabVIEW or 9 for ZMQ.', ErrStat, ErrMsg, RoutineName )
          END IF
       END IF
 
 
          ! checks for generator and torque control:
       IF ( InputFileData%VSContrl /= ControlMode_NONE .and. &
-              InputFileData%VSContrl /= ControlMode_SIMPLE .AND. InputFileData%VSContrl /= ControlMode_USER )  THEN
+              InputFileData%VSContrl /= ControlMode_SIMPLE .AND. InputFileData%VSContrl /= ControlMode_USER .AND. InputFileData%VSContrl /= ZmqIn )  THEN
          IF ( InputFileData%VSContrl /= ControlMode_DLL .AND. InputFileData%VSContrl /=ControlMode_EXTERN )  &
          CALL SetErrStat( ErrID_Fatal, 'VSContrl must be either 0, 1, 3, 4, or 5.', ErrStat, ErrMsg, RoutineName )
       ENDIF
@@ -5260,6 +5260,10 @@ SUBROUTINE CalculateStandardYaw(t, u, p, m, YawPosCom, YawRateCom, YawPosComInt,
                return
             end if
 
+         CASE ( ZmqIn )
+
+            continue
+
       END SELECT
 
 
@@ -5406,7 +5410,7 @@ SUBROUTINE Pitch_CalcOutput( t, u, p, x, xd, z, OtherState, BlPitchCom, ElecPwr,
 
             BlPitchCom = p%BlAlpha * m%xd_BlPitchFilter + (1.0_ReKi - p%BlAlpha) * BlPitchCom
 
-         CASE ( ZmqIn_BldPitch )
+         CASE ( ZmqIn )
 
             ! ... do nothing, values are overwritten in FAST_Subs ...
             continue
@@ -5753,6 +5757,10 @@ SUBROUTINE Torque_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrM
 
             HSSBrFrac = u%ExternalHSSBrFrac
 
+         CASE ( ZmqIn )
+
+            continue
+
          ENDSELECT
 
          HSSBrFrac = MAX( MIN( HSSBrFrac, 1.0_ReKi ), 0.0_ReKi )  ! make sure we didn't get outside the acceptable range: 0 (off) <= HSSBrFrac <= 1 (full)
@@ -6000,6 +6008,10 @@ SUBROUTINE CalculateTorque( t, u, p, m, GenTrq, ElecPwr, ErrStat, ErrMsg )
 
                GenTrq  = u%ExternalGenTrq
                ElecPwr = u%ExternalElecPwr
+            
+            CASE ( ZmqIn ) 
+
+               continue
 
          END SELECT
 
@@ -6209,6 +6221,13 @@ SUBROUTINE CalculateTorqueJacobian( t, u, p, m, GenTrq_du, ElecPwr_du, ErrStat, 
                CASE ( ControlMode_USER )                          ! User-defined generator model.
 
                      ! we should not get here (initialization should have caught this issue)
+
+                  GenTrq_du   = 0.0_R8Ki
+                  ElecPwr_du  = 0.0_R8Ki
+
+               CASE ( ZmqIn )
+
+                  ! we should not get here (initialization should have caught this issue)
 
                   GenTrq_du   = 0.0_R8Ki
                   ElecPwr_du  = 0.0_R8Ki

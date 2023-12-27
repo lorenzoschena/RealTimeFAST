@@ -5475,12 +5475,12 @@ SUBROUTINE FAST_Solution(t_initial, n_t_global, p_FAST, y_FAST, m_FAST, ED, BD, 
                SrvD%y%BlPitchCom(2) = ZmqInChannelsAry(i)
             case('BldPitchCom3')
                SrvD%y%BlPitchCom(3) = ZmqInChannelsAry(i)
-            ! case('YawRateCom') ! watch out that these are parameters, throw error
-            !    SrvD%p%YawRateCom = ZmqInChannelsAry(i)
-            ! case('YawPosCom')
-            !    SrvD%p%YawPosCom  = ZmqInChannelsAry(i)
+            case('YawMom') ! watch out that these are parameters, throw error
+               SrvD%y%YawMom = ZmqInChannelsAry(i)
             case('GenTrq')
                SrvD%y%GenTrq  = ZmqInChannelsAry(i)
+            case('HSSBrFrac')
+               SrvD%y%hssbrtrqc  = ZmqInChannelsAry(i)
          end select 
          
       end do 
