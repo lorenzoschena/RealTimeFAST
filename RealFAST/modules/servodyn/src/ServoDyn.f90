@@ -62,6 +62,7 @@ MODULE ServoDyn
    INTEGER(IntKi), PARAMETER :: ControlMode_USER      = 3          !< The (ServoDyn-universal) control code for obtaining the control values from a user-defined routine
    INTEGER(IntKi), PARAMETER :: ControlMode_EXTERN    = 4          !< The (ServoDyn-universal) control code for obtaining the control values from Simulink or Labivew
    INTEGER(IntKi), PARAMETER :: ControlMode_DLL       = 5          !< The (ServoDyn-universal) control code for obtaining the control values from a Bladed-Style dynamic-link library
+   INTEGER(IntKi), PARAMETER :: ZmqIn_BldPitch        = 9          !< The (ServoDyn-universal) control code for obtaining the control values from a Zmq socket
 
    INTEGER(IntKi), PARAMETER, PUBLIC :: TrimCase_none   = 0
    INTEGER(IntKi), PARAMETER, PUBLIC :: TrimCase_yaw    = 1
@@ -4587,7 +4588,7 @@ CONTAINS
       END IF
 
 
-      IF ( InputFileData%PCMode /= ControlMode_NONE .and. InputFileData%PCMode /= ControlMode_USER )  THEN
+      IF ( InputFileData%PCMode /= ControlMode_NONE .and. InputFileData%PCMode /= ControlMode_USER .and. InputFileData%PCMode /= ZmqIn_BldPitch )  THEN
          IF ( InputFileData%PCMode /= ControlMode_EXTERN .and. InputFileData%PCMode /= ControlMode_DLL )  &
          CALL SetErrStat( ErrID_Fatal, 'PCMode must be 0, 3, 4, or 5.', ErrStat, ErrMsg, RoutineName )
       ENDIF
@@ -4854,7 +4855,7 @@ SUBROUTINE SrvD_SetParameters( InputFileData, p, UnSum, ErrStat, ErrMsg )
    if (UnSum >0) then
       write(UnSum, '(A)')  ' Unless specified, units are consistent with Input units, [SI] system is advised.'
       write(UnSum, '(A)') SectionDivide
-      write(UnSum, '(A)')                 ' Pitch control mode {0: none, 3: user-defined from routine PitchCntrl, 4: user-defined from Simulink/Labview, 5: user-defined from Bladed-style DLL} (switch)'
+      write(UnSum, '(A)')                 ' Pitch control mode {0: none, 3: user-defined from routine PitchCntrl, 4: user-defined from Simulink/Labview, 5: user-defined from Bladed-style DLL, 9: ZmqIn} (switch)'
       write(UnSum, '(A43,I2)')            '   PCMode -- Pitch control mode:           ',p%PCMode
       write(UnSum, '(A43,ES20.12e3)')     '   TPCOn  -- pitch control start time:     ',p%TPCOn
       write(UnSum, '(A)')                 '   -------------------'
@@ -5405,13 +5406,16 @@ SUBROUTINE Pitch_CalcOutput( t, u, p, x, xd, z, OtherState, BlPitchCom, ElecPwr,
 
             BlPitchCom = p%BlAlpha * m%xd_BlPitchFilter + (1.0_ReKi - p%BlAlpha) * BlPitchCom
 
+         CASE ( ZmqIn_BldPitch )
+
+            ! ... do nothing, values are overwritten in FAST_Subs ...
+            continue
+
       END SELECT
 
    ELSE                          ! Do not control pitch yet, maintain initial pitch angles.
 
-      ! Use the initial blade pitch angles:
-
-      BlPitchCom = p%BlPitchInit
+      BlPitchCom = p%BlPitchInit ! todo: add check that blpitch is one of the channels inputs of ZMQ
 
    ENDIF
 

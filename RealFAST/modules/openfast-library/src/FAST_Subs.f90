@@ -105,10 +105,9 @@ real, dimension(request_size)              :: values_array  ! empty (or not) arr
 ! --------------------------------------------------------------
 real(c_double), dimension(:), pointer      :: received_values
 type(c_ptr)                                :: response_ptr
-integer                                    :: num_values, i
-
-character(kind=c_char), dimension(:), pointer :: received_string
-real, allocatable :: float_array(:)
+integer                                    :: num_values, i, str_len
+integer, parameter                         :: max_string_length = 1024
+real(kind=c_float), dimension(:), pointer :: float_array
 ! --------------------------------------------------------------
 
 character(len=300) :: concatreq = ''
@@ -119,19 +118,16 @@ end do
 concatreq = trim(concatreq) // c_null_char
 socket_address = trim(socket_address) // c_null_char ! to be moved in initialization
 
-! response_ptr = zmq_req_rep(socket_address, concatreq)
 response_ptr = zmq_req_rep(socket_address, concatreq)
-    
-! ! Convert the C pointer to a Fortran character array
-! allocate(received_string(1024))
-! call c_f_pointer(response_ptr, received_string, [1024])
-! print *, "Received measurements", received_string
-! allocate(float_array(request_size))
-! read(received_string, *) float_array
 
-! do i= 1, request_size
-!    values_array(i) = float_array(i)
-! end do 
+call c_f_pointer(response_ptr, float_array, [request_size])
+
+! Print the received C string (for debugging purposes)
+print *, "Received measurements: ", float_array
+
+do i= 1, request_size
+   values_array(i) = float_array(i)
+end do 
 
    ! received_float = tmp_float
    ! Set as ErrStat // ErrMsg for consistency with openfast ""ErrId_Severe, Fatal, None""
@@ -5150,7 +5146,7 @@ SUBROUTINE FAST_Solution(t_initial, n_t_global, p_FAST, y_FAST, m_FAST, ED, BD, 
    ! -----------------------------------------------------------------------------
    REAL(DbKi), allocatable, intent(inout)           :: ZmqOutChannelsAry(:)
    REAL(DbKi)                                       :: ZmqInChannelsAry(p_FAST%ZmqInNbr)
-   character                                        :: tmp_str 
+   character(len=1024)                              :: tmp_str 
    ! -----------------------------------------------------------------------------
 
    ErrStat  = ErrID_None
@@ -5224,58 +5220,13 @@ SUBROUTINE FAST_Solution(t_initial, n_t_global, p_FAST, y_FAST, m_FAST, ED, BD, 
    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    !! ## Step 1.c: Input-Output Solve
    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   ! Inserting here call to ZMQ to retrieve current wspeed (possible to be extended later)
+
    ! hard coded here copy of the zmq-interactor module, may be added to compilation later on
       !IF (ErrVar%aviFAIL < 0) THEN
       !   ErrVar%ErrMsg = RoutineName//':'//TRIM(ErrVar%ErrMsg)
       !   print * , TRIM(ErrVar%ErrMsg)
       !ENDIF
       !ErrMsg = ADJUSTL(TRIM(ErrVar%ErrMsg))
-
-      if (p_FAST%ZmqOn) then 
-         ! Here we iterate through the channels requested and received from the Zmq socket
-         ! and we substitute relative inputs
-         ! CALL AllocAry( ZmqInChannelsAry, p_FAST%ZmqInNbr, 'ZmqInChannelsAry', ErrStat, ErrMsg )
-
-         ZmqInChannelsAry = 0.0_DbKi
-
-         print *, "Preparing comm with ZMQ at", p_FAST%ZmqInAddress
-         print *, "Requesting.... ", p_FAST%ZmqInChannels
-         print *, "To allocate in ....", ZmqInChannelsAry
-
-         call zmq_req(p_FAST%ZmqInAddress, p_FAST%ZmqInChannels, p_FAST%ZmqInNbr, ZmqInChannelsAry)
-         
-         do i = 1, p_FAST%ZmqInNbr
-            tmp_str = trim(p_FAST%ZmqInChannels(i)) 
-
-            select case (tmp_str) ! Be careful with dependencies 
-               case('VelH')
-                  IfW%p%FlowField%Uniform%VelH = ZmqInChannelsAry(i)
-               case('VelV')
-                  IfW%p%FlowField%Uniform%VelV = ZmqInChannelsAry(i)
-               case('VelGust')
-                  IfW%p%FlowField%Uniform%VelGust = ZmqInChannelsAry(i)
-               case('AngleV')
-                  IfW%p%FlowField%Uniform%AngleV = ZmqInChannelsAry(i)
-               case('AngleH')
-                  IfW%p%FlowField%Uniform%AngleH = ZmqInChannelsAry(i)
-               case('BlPitchCom1')
-                  SrvD%y%BlPitchCom(1) = ZmqInChannelsAry(i)
-               case('BlPitchCom2')
-                  SrvD%y%BlPitchCom(2) = ZmqInChannelsAry(i)
-               case('BlPitchCom3')
-                  SrvD%y%BlPitchCom(3) = ZmqInChannelsAry(i)
-               case('YawRateCom') ! watch out that these are parameters, throw error
-                  SrvD%p%YawRateCom = ZmqInChannelsAry(i)
-               case('YawPosCom')
-                  SrvD%p%YawPosCom  = ZmqInChannelsAry(i)
-               case('GenTrq')
-                  SrvD%y%GenTrq  = ZmqInChannelsAry(i)
-            end select 
-            
-         end do 
-      
-      end if 
 
       CALL CalcOutputs_And_SolveForInputs( n_t_global, t_global_next,  STATE_PRED, m_FAST%calcJacobian, m_FAST%NextJacCalcTime, &
          p_FAST, m_FAST, WriteThisStep, ED, BD, SrvD, AD14, AD, IfW, OpFM, HD, SD, ExtPtfm, MAPp, FEAM, MD, Orca, IceF, IceD, MeshMapData, ErrStat2, ErrMsg2 )
@@ -5287,6 +5238,7 @@ SUBROUTINE FAST_Solution(t_initial, n_t_global, p_FAST, y_FAST, m_FAST, ED, BD, 
    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       j_pc = j_pc + 1
 
+      
       !   ! Check if the predicted inputs were significantly different than the corrected inputs
       !   ! (values before and after CalcOutputs_And_SolveForInputs)
       !if (j_pc > NumCorrections) then
@@ -5495,7 +5447,45 @@ SUBROUTINE FAST_Solution(t_initial, n_t_global, p_FAST, y_FAST, m_FAST, ED, BD, 
    ! Advance time step
    m_FAST%t_global = t_global_next
 
+   ! Inserting here call to ZMQ to retrieve and override routines' outputs 
+         
+   if (p_FAST%ZmqOn) then 
 
+      ZmqInChannelsAry = 0.0_DbKi
+
+      call zmq_req(p_FAST%ZmqInAddress, p_FAST%ZmqInChannels, p_FAST%ZmqInNbr, ZmqInChannelsAry)
+
+      do i = 1, p_FAST%ZmqInNbr
+         tmp_str = trim(p_FAST%ZmqInChannels(i)) 
+
+         select case (tmp_str) ! Be careful with dependencies 
+            case('VelH')
+               IfW%p%FlowField%Uniform%VelH = ZmqInChannelsAry(i)
+            case('VelV')
+               IfW%p%FlowField%Uniform%VelV = ZmqInChannelsAry(i)
+            case('VelGust')
+               IfW%p%FlowField%Uniform%VelGust = ZmqInChannelsAry(i)
+            case('AngleV')
+               IfW%p%FlowField%Uniform%AngleV = ZmqInChannelsAry(i)
+            case('AngleH')
+               IfW%p%FlowField%Uniform%AngleH = ZmqInChannelsAry(i)
+            case('BldPitchCom1')
+               SrvD%y%BlPitchCom(1) = ZmqInChannelsAry(i)
+            case('BldPitchCom2')
+               SrvD%y%BlPitchCom(2) = ZmqInChannelsAry(i)
+            case('BldPitchCom3')
+               SrvD%y%BlPitchCom(3) = ZmqInChannelsAry(i)
+            ! case('YawRateCom') ! watch out that these are parameters, throw error
+            !    SrvD%p%YawRateCom = ZmqInChannelsAry(i)
+            ! case('YawPosCom')
+            !    SrvD%p%YawPosCom  = ZmqInChannelsAry(i)
+            case('GenTrq')
+               SrvD%y%GenTrq  = ZmqInChannelsAry(i)
+         end select 
+         
+      end do 
+   
+   end if 
    !----------------------------------------------------------------------------------------
    !! Check to see if we should output data this time step:
    !----------------------------------------------------------------------------------------

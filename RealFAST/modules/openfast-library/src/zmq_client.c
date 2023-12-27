@@ -361,7 +361,8 @@ int count_semicolons(const char *request) {
     return semicolon_count;
 }
 
-char *zmq_req_rep(const char *socket_address, const char *request) {
+
+float *zmq_req_rep(const char *socket_address, const char *request) {
     
     if (requester == NULL) {
         printf("Socket not initialized. Call zmq_initialize_requester first.\n");
@@ -379,21 +380,81 @@ char *zmq_req_rep(const char *socket_address, const char *request) {
     // char received_data[max_floats * sizeof(float)];
 
     // Receive data via ZeroMQ
-    char received_data[1024]; 
+    char buffer[1024];  
+    zmq_recv(requester, buffer, sizeof(buffer), 0);
+
+    // Process received string
+    int count = 0;
+    const char delim[] = ";";
+    char* token;
+    float* float_array;
+
+    // Count the number of floats
+    char* copy = strdup(buffer);
+    token = strtok(copy, delim);
+    while (token != NULL) {
+        count++;
+        token = strtok(NULL, delim);
+    }
+    free(copy);
+
+    // Allocate memory for the float array
+    float_array = (float*)malloc(count * sizeof(float));
+
+    // Convert string tokens to floats
+    token = strtok(buffer, delim);
+    for (int i = 0; i < count; ++i) {
+        float_array[i] = strtof(token, NULL);
+        token = strtok(NULL, delim);
+    }
+
+    printf("Received float array:");
+    for (int i = 0; i < count; ++i) {
+        printf(" %.4f", float_array[i]);
+    }
+    printf("\n");
+
+    return float_array;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // const int max_data_size = 1024;
 
     // Receive data via ZeroMQ
-    int recv_size = zmq_recv(requester, received_data, sizeof(received_data), 0);
-        if (recv_size > 0) {
-            received_data[sizeof(received_data)-1] = '\0';
-            printf("Received data: %s\n", received_data);
+    // char* received_data = (char*)malloc(max_data_size * sizeof(char));
 
-            return received_data; 
-        } else {
-            fprintf(stderr, "Error receiving data\n");
-            // Handle the error appropriately
-            return NULL; // Return NULL in case of error
-        }
-    }
+    // Receive data via ZeroMQ
+    // int recv_size = zmq_recv(requester, received_data, max_data_size - 1, 0);
+    
+    // if (recv_size > 0) {
+    //     received_data[recv_size] = '\0'; // Null-terminate at the correct position
+    //     printf("Received data: %s\n", received_data);
+
+    //     return received_data;
+    // } else {
+    //     fprintf(stderr, "Error receiving data\n");
+    //     free(received_data);
+    //     return NULL;
+    // }
+    // }
 
 
 
