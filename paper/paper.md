@@ -1,26 +1,34 @@
 ---
-title: 'Gala: A Python package for galactic dynamics'
+title: 'Z-OpenFAST: a module for real-time interaction with the OpenFAST solver'
 tags:
   - Python
-  - astronomy
-  - dynamics
-  - galactic dynamics
-  - milky way
+  - Fortran
+  - C
+  - Zmq
+  - OpenFAST
+  - Condition Monitoring
+  - Control
 authors:
-  - name: Adrian M. Price-Whelan
+  - name: L. Schena
     orcid: 0000-0000-0000-0000
     equal-contrib: true
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
-  - name: Author Without ORCID
+  - name: E. Branlard
     equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
     affiliation: 2
-  - name: Author with no affiliation
+  - name: A. Platt
     corresponding: true # (This is how to denote the corresponding author)
     affiliation: 3
-  - given-names: Ludwig
-    dropping-particle: van
-    surname: Beethoven
+  - name: D. Slaughter
+    corresponding: true # (This is how to denote the corresponding author)
     affiliation: 3
+  - name: J. Jonkman
+    corresponding: true # (This is how to denote the corresponding author)
+    affiliation: 3
+  - name: J. Helsen
+    corresponding: true # (This is how to denote the corresponding author)
+    affiliation: 3
+
 affiliations:
  - name: Lyman Spitzer, Jr. Fellow, Princeton University, USA
    index: 1
